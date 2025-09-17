@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  ItemsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Items
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CrudApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+
+  CrudFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.handler
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ItemsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ItemsTable
+      Events:
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CrudApi
+            Path: /items
+            Method: post
+        Read:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CrudApi
+            Path: /items/{id}
+            Method: get
+        Update:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CrudApi
+            Path: /items/{id}
+            Method: put
+        Delete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CrudApi
+            Path: /items/{id}
+            Method: delete
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${CrudApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
